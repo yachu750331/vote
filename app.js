@@ -149,13 +149,16 @@ async function checkAdmin(uid){
   return doc.exists;
 }
 
-auth.onAuthStateChanged(async user=>{
-  if(user){
-    isAdminUser=await checkAdmin(user.uid);
-    adminStatus.innerText=isAdminUser?"Admin":"User";
-  }else{
-    isAdminUser=false;
-    adminStatus.innerText="";
+auth.onAuthStateChanged(async user => {
+  if (user) {
+    // 等待權限檢查完成
+    isAdminUser = await checkAdmin(user.uid);
+    adminStatus.innerText = isAdminUser ? "Admin" : "User";
+  } else {
+    isAdminUser = false;
+    adminStatus.innerText = "";
   }
-  loadRank();
+  
+  // 確保身份狀態 (isAdminUser) 更新後才載入排行榜
+  loadRank(); 
 });
