@@ -1,4 +1,4 @@
-// Firebase 配置 (由你提供)
+// Firebase 配置
 const firebaseConfig = {
   apiKey: "AIzaSyArRnMFZoLEjghu1WOHvkoVpss67KKAs2M",
   authDomain: "vote-742d9.firebaseapp.com",
@@ -8,7 +8,6 @@ const firebaseConfig = {
   appId: "1:265605858274:web:dda344ef0d7176cfe56fbb"
 };
 
-// 初始化 Firebase
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
@@ -19,18 +18,14 @@ let isAdminUser = false;
 const rankPage = document.getElementById("rankPage");
 const votePage = document.getElementById("votePage");
 const adminStatus = document.getElementById("adminStatus");
-const adminBar = document.querySelector(".admin-bar"); // 對應你的 index.html
+const adminBar = document.querySelector(".admin-bar");
 
-// --- 介面切換邏輯 ---
-
-// 檢查網址參數：如果是 ?admin=true 才顯示管理工具列
+// --- 介面管理與網址參數偵測 ---
 const urlParams = new URLSearchParams(window.location.search);
 const isManagementMode = urlParams.get('admin') === 'true';
 
-if (isManagementMode) {
+if (isManagementMode && adminBar) {
   adminBar.classList.remove("hidden");
-} else {
-  adminBar.classList.add("hidden");
 }
 
 document.getElementById("tabRank").onclick = () => {
@@ -51,8 +46,7 @@ function setActive(i) {
   });
 }
 
-// --- 投票核心邏輯 ---
-
+// --- 裝置識別 ID ---
 function getDeviceId() {
   let id = localStorage.getItem("deviceId");
   if (!id) {
@@ -62,38 +56,68 @@ function getDeviceId() {
   return id;
 }
 
+// --- 修改：一天 2 票的核心邏輯 ---
 async function voteTicker(ticker) {
   ticker = ticker.toUpperCase();
   const today = new Date().toISOString().slice(0, 10);
-  const voteId = today + "_" + getDeviceId();
-  const voteRef = db.collection("daily_votes").doc(voteId);
+  const deviceId = getDeviceId();
 
-  if ((await voteRef.get()).exists) {
-    alert("今天已投票囉！");
+  // 定義該裝置今天的兩個投票位置 (Slot 1 & Slot 2)
+  const voteId1 = `${today}_${deviceId}_1`;
+  const voteId2 = `${today}_${deviceId}_2`;
+
+  const voteRef1 = db.collection("daily_votes").doc(voteId1);
+  const voteRef2 = db.collection("daily_votes").doc(voteId2);
+
+  // 同時檢查兩個位置是否已被佔用
+  const [doc1, doc2] = await Promise.all([voteRef1.get(), voteRef2.get()]);
+
+  let targetRef;
+  let voteSequence = 0;
+
+  if (!doc1.exists) {
+    // 尚未投出第 1 票
+    targetRef = voteRef1;
+    voteSequence = 1;
+  } else if (!doc2.exists) {
+    // 已投過第 1 票，準備投第 2 票
+    targetRef = voteRef2;
+    voteSequence = 2;
+  } else {
+    // 兩張票都已經投過了
+    alert("今天已投完 2 票囉！明天歡迎再來許願。");
     return;
   }
 
   const ref = db.collection("votes").doc(ticker);
-  await db.runTransaction(async tx => {
-    const doc = await tx.get(ref);
-    if (!doc.exists) {
-      tx.set(ref, { count: 1 });
-    } else {
-      tx.update(ref, { count: doc.data().count + 1 });
-    }
-    tx.set(voteRef, { ticker, timestamp: Date.now() });
-  });
+
+  try {
+    await db.runTransaction(async tx => {
+      const doc = await tx.get(ref);
+      if (!doc.exists) {
+        tx.set(ref, { count: 1 });
+      } else {
+        tx.update(ref, { count: doc.data().count + 1 });
+      }
+      // 存入對應的序號文檔，符合 Firebase Rules 的 !exists 規則
+      tx.set(targetRef, { ticker, timestamp: Date.now() });
+    });
+    
+    alert(`投票成功！這是你今天的第 ${voteSequence} 票。`);
+  } catch (error) {
+    console.error("投票失敗:", error);
+    alert("投票過程發生錯誤，請稍後再試。");
+  }
 }
 
 function voteInput() {
   const val = document.getElementById("tickerInput").value.trim();
   if (!val) return;
   voteTicker(val);
-  document.getElementById("tickerInput").value = ""; // 清空輸入框
+  document.getElementById("tickerInput").value = "";
 }
 
-// --- 渲染與管理功能 ---
-
+// --- 渲染排行與管理功能 ---
 function renderMedal(i) {
   if (i === 0) return "🥇";
   if (i === 1) return "🥈";
@@ -128,7 +152,6 @@ function loadRank() {
 
         right.appendChild(count);
 
-        // 如果是管理員，顯示刪除按鈕
         if (isAdminUser) {
           const del = document.createElement("button");
           del.innerText = "✕";
@@ -152,14 +175,12 @@ async function deleteTicker(t) {
   await db.collection("votes").doc(t).delete();
 }
 
-// --- 身份驗證邏輯 ---
-
+// --- 身份與權限驗證 ---
 function login() {
   const provider = new firebase.auth.GoogleAuthProvider();
-  // 使用彈出視窗登入
   auth.signInWithPopup(provider).catch(err => {
-    console.error("登入失敗:", err.message);
-    alert("登入失敗，請檢查網域授權設定。");
+    console.error("Login Error:", err);
+    alert("登入失敗，請確認 Firebase 已授權你的網域。");
   });
 }
 
@@ -172,25 +193,18 @@ async function checkAdmin(uid) {
     const doc = await db.collection("admins").doc(uid).get();
     return doc.exists;
   } catch (e) {
-    console.log("權限檢查失敗（可能尚未設定 admins 集合）");
     return false;
   }
 }
 
-// 監聽登入狀態改變
 auth.onAuthStateChanged(async user => {
   if (user) {
     console.log("當前使用者 UID:", user.uid);
-    // 如果你在測試中，可以用下面這行彈出 UID 以便複製
-    // alert("你的 UID: " + user.uid); 
-
     isAdminUser = await checkAdmin(user.uid);
     adminStatus.innerText = isAdminUser ? "管理者模式" : "一般使用者";
   } else {
     isAdminUser = false;
     adminStatus.innerText = "";
   }
-  
-  // 確保身份確認後再載入排行，避免刪除按鈕顯示錯誤
-  loadRank(); 
+  loadRank();
 });
