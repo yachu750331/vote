@@ -1,4 +1,3 @@
-// Firebase 配置 (與你的專案對應)
 const firebaseConfig = {
   apiKey: "AIzaSyArRnMFZoLEjghu1WOHvkoVpss67KKAs2M",
   authDomain: "vote-742d9.firebaseapp.com",
@@ -14,21 +13,11 @@ const auth = firebase.auth();
 
 let isAdminUser = false;
 
-// DOM 元素
 const rankPage = document.getElementById("rankPage");
 const votePage = document.getElementById("votePage");
 const adminStatus = document.getElementById("adminStatus");
-const adminControlPanel = document.getElementById("adminControlPanel");
-
-// --- 介面控制邏輯 ---
-
-// 檢查網址參數：如果是 ?admin=true 才開啟管理功能
-const urlParams = new URLSearchParams(window.location.search);
-const isManagementMode = urlParams.get('admin') === 'true';
-
-if (isManagementMode && adminControlPanel) {
-  adminControlPanel.style.display = "block"; // 顯示管理按鈕
-}
+const pinnedSection = document.getElementById("pinnedSection");
+const normalSection = document.getElementById("normalSection");
 
 document.getElementById("tabRank").onclick = () => {
   rankPage.classList.remove("hidden");
@@ -42,161 +31,196 @@ document.getElementById("tabVote").onclick = () => {
   setActive(1);
 };
 
-function setActive(i) {
-  document.querySelectorAll(".tab").forEach((t, idx) => {
-    t.classList.toggle("active", idx === i);
+function setActive(i){
+  document.querySelectorAll(".tab").forEach((t,idx)=>{
+    t.classList.toggle("active",idx===i);
   });
 }
 
-// --- 投票核心邏輯 (裝置 ID + 一天 2 票) ---
-
-function getDeviceId() {
-  let id = localStorage.getItem("deviceId");
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem("deviceId", id);
+function getDeviceId(){
+  let id=localStorage.getItem("deviceId");
+  if(!id){
+    id=crypto.randomUUID();
+    localStorage.setItem("deviceId",id);
   }
   return id;
 }
 
-async function voteTicker(ticker) {
-  ticker = ticker.toUpperCase();
-  const today = new Date().toISOString().slice(0, 10);
-  const deviceId = getDeviceId();
+async function voteTicker(ticker){
+  ticker=ticker.toUpperCase();
+  const today=new Date().toISOString().slice(0,10);
+  const deviceId=getDeviceId();
 
-  // 檢查第 1 票與第 2 票的槽位
-  const voteRef1 = db.collection("daily_votes").doc(`${today}_${deviceId}_1`);
-  const voteRef2 = db.collection("daily_votes").doc(`${today}_${deviceId}_2`);
+  const voteRef1=db.collection("daily_votes").doc(`${today}_${deviceId}_1`);
+  const voteRef2=db.collection("daily_votes").doc(`${today}_${deviceId}_2`);
 
-  const [doc1, doc2] = await Promise.all([voteRef1.get(), voteRef2.get()]);
+  const [doc1,doc2]=await Promise.all([voteRef1.get(),voteRef2.get()]);
 
   let targetRef;
-  let voteSeq = 0;
-
-  if (!doc1.exists) {
-    targetRef = voteRef1;
-    voteSeq = 1;
-  } else if (!doc2.exists) {
-    targetRef = voteRef2;
-    voteSeq = 2;
-  } else {
-    alert("今天已投完 2 票囉！");
+  if(!doc1.exists){
+    targetRef=voteRef1;
+  }else if(!doc2.exists){
+    targetRef=voteRef2;
+  }else{
+    alert("今天已投完 2 票");
     return;
   }
 
-  const ref = db.collection("votes").doc(ticker);
+  const ref=db.collection("votes").doc(ticker);
 
-  try {
-    await db.runTransaction(async tx => {
-      const doc = await tx.get(ref);
-      if (!doc.exists) {
-        tx.set(ref, { count: 1 });
-      } else {
-        tx.update(ref, { count: doc.data().count + 1 });
-      }
-      tx.set(targetRef, { ticker, timestamp: Date.now() });
-    });
-    alert(`投票成功！這是你今天的第 ${voteSeq} 票。`);
-  } catch (e) {
-    alert("投票失敗，請檢查網路連線。");
-  }
+  await db.runTransaction(async tx=>{
+    const doc=await tx.get(ref);
+    if(!doc.exists){
+      tx.set(ref,{count:1,pinned:false});
+    }else{
+      tx.update(ref,{count:doc.data().count+1});
+    }
+    tx.set(targetRef,{ticker,timestamp:Date.now()});
+  });
 }
 
-function voteInput() {
-  const val = document.getElementById("tickerInput").value.trim();
-  if (!val) return;
+function voteInput(){
+  const val=document.getElementById("tickerInput").value.trim();
+  if(!val)return;
   voteTicker(val);
-  document.getElementById("tickerInput").value = ""; 
+  document.getElementById("tickerInput").value="";
 }
 
-// --- 渲染與管理功能 ---
+function renderCard(doc,isPinned,rankIndex){
 
-function renderMedal(i) {
-  if (i === 0) return "🥇";
-  if (i === 1) return "🥈";
-  if (i === 2) return "🥉";
-  return "";
+  const data=doc.data();
+  const card=document.createElement("div");
+  card.className="card";
+
+  if(isPinned){
+    card.classList.add("pinned-card");
+  }
+
+  card.onclick=()=>voteTicker(doc.id);
+
+  const left=document.createElement("div");
+  left.innerHTML=`<span class="medal">${rankIndex<3?["🥇","🥈","🥉"][rankIndex]:""}</span>
+                  <span class="ticker">${doc.id}</span>`;
+
+  const right=document.createElement("div");
+
+  const count=document.createElement("span");
+  count.className="count";
+  count.innerText=data.count;
+
+  count.classList.add("flip");
+  setTimeout(()=>count.classList.remove("flip"),300);
+
+  right.appendChild(count);
+
+  if(isAdminUser){
+
+    const del=document.createElement("button");
+    del.innerText="✕";
+    del.className="admin-delete";
+    del.onclick=e=>{
+      e.stopPropagation();
+      deleteTicker(doc.id);
+    };
+    right.appendChild(del);
+
+    const pin=document.createElement("button");
+    pin.innerText="📌";
+    pin.className="admin-pin";
+    if(data.pinned) pin.classList.add("active");
+
+    pin.onclick=e=>{
+      e.stopPropagation();
+      togglePin(doc.id,data.pinned===true);
+    };
+
+    right.appendChild(pin);
+  }
+
+  card.appendChild(left);
+  card.appendChild(right);
+
+  return card;
 }
 
-function loadRank() {
-  db.collection("votes").orderBy("count", "desc")
-    .onSnapshot(snapshot => {
-      rankPage.innerHTML = "";
-      snapshot.docs.forEach((doc, i) => {
-        const card = document.createElement("div");
-        card.className = "card";
-        if (i === 0) card.classList.add("top1");
-        if (i === 1) card.classList.add("top2");
-        if (i === 2) card.classList.add("top3");
+function loadRank(){
 
-        card.onclick = () => voteTicker(doc.id);
+  db.collection("votes")
+    .orderBy("pinned","desc")
+    .orderBy("count","desc")
+    .onSnapshot(snapshot=>{
 
-        const left = document.createElement("div");
-        left.innerHTML = `<span class="medal">${renderMedal(i)}</span>
-                          <span class="ticker">${doc.id}</span>`;
+      pinnedSection.innerHTML="";
+      normalSection.innerHTML="";
 
-        const right = document.createElement("div");
-        const count = document.createElement("span");
-        count.className = "count";
-        count.innerText = doc.data().count;
+      const pinnedDocs=[];
+      const normalDocs=[];
 
-        count.classList.add("flip");
-        setTimeout(() => count.classList.remove("flip"), 300);
-
-        right.appendChild(count);
-
-        // 如果是管理員且登入成功，顯示刪除按鈕
-        if (isAdminUser) {
-          const del = document.createElement("button");
-          del.innerText = "✕";
-          del.className = "admin-delete";
-          del.onclick = e => {
-            e.stopPropagation();
-            deleteTicker(doc.id);
-          };
-          right.appendChild(del);
+      snapshot.docs.forEach(doc=>{
+        if(doc.data().pinned){
+          pinnedDocs.push(doc);
+        }else{
+          normalDocs.push(doc);
         }
-
-        card.appendChild(left);
-        card.appendChild(right);
-        rankPage.appendChild(card);
       });
+
+      if(pinnedDocs.length>0){
+        const title=document.createElement("div");
+        title.className="section-title";
+        title.innerText="置頂股票";
+        pinnedSection.appendChild(title);
+
+        pinnedDocs.forEach((doc,i)=>{
+          pinnedSection.appendChild(renderCard(doc,true,i));
+        });
+      }
+
+      if(normalDocs.length>0){
+        const title=document.createElement("div");
+        title.className="section-title";
+        title.innerText="股票排行榜";
+        normalSection.appendChild(title);
+
+        normalDocs.forEach((doc,i)=>{
+          normalSection.appendChild(renderCard(doc,false,i));
+        });
+      }
+
     });
 }
 
-async function deleteTicker(t) {
-  if (!confirm("確定要刪除 " + t + " 嗎？")) return;
+async function deleteTicker(t){
+  if(!confirm("確定刪除 "+t+" ?"))return;
   await db.collection("votes").doc(t).delete();
 }
 
-// --- 身份驗證邏輯 ---
+async function togglePin(ticker,current){
+  await db.collection("votes").doc(ticker).update({
+    pinned:!current
+  });
+}
 
-function login() {
-  const provider = new firebase.auth.GoogleAuthProvider();
+function login(){
+  const provider=new firebase.auth.GoogleAuthProvider();
   auth.signInWithPopup(provider);
 }
 
-function logout() {
+function logout(){
   auth.signOut();
 }
 
-async function checkAdmin(uid) {
-  try {
-    const doc = await db.collection("admins").doc(uid).get();
-    return doc.exists;
-  } catch (e) {
-    return false;
-  }
+async function checkAdmin(uid){
+  const doc=await db.collection("admins").doc(uid).get();
+  return doc.exists;
 }
 
-auth.onAuthStateChanged(async user => {
-  if (user) {
-    console.log("UID:", user.uid);
-    isAdminUser = await checkAdmin(user.uid);
-    adminStatus.innerText = isAdminUser ? "管理者模式" : "一般使用者";
-  } else {
-    isAdminUser = false;
-    adminStatus.innerText = "";
+auth.onAuthStateChanged(async user=>{
+  if(user){
+    isAdminUser=await checkAdmin(user.uid);
+    adminStatus.innerText=isAdminUser?"管理者模式":"一般使用者";
+  }else{
+    isAdminUser=false;
+    adminStatus.innerText="";
   }
-  loadRank(); 
+  loadRank();
 });
