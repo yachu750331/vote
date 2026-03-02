@@ -1,4 +1,4 @@
-// Firebase 配置
+// Firebase 配置 (與您的專案對應)
 const firebaseConfig = {
   apiKey: "AIzaSyArRnMFZoLEjghu1WOHvkoVpss67KKAs2M",
   authDomain: "vote-742d9.firebaseapp.com",
@@ -8,6 +8,7 @@ const firebaseConfig = {
   appId: "1:265605858274:web:dda344ef0d7176cfe56fbb"
 };
 
+// 初始化 Firebase
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
@@ -23,6 +24,8 @@ const normalSection = document.getElementById("normalSection");
 const adminControlPanel = document.getElementById("adminControlPanel");
 
 // --- 介面控制邏輯 ---
+
+// 檢查網址參數：如果是 ?admin=true 才開啟管理功能
 const urlParams = new URLSearchParams(window.location.search);
 const isManagementMode = urlParams.get('admin') === 'true';
 
@@ -57,14 +60,18 @@ function getDeviceId(){
   return id;
 }
 
-/* ---------------- 投票核心邏輯 ---------------- */
+/* ---------------- 投票核心邏輯 (裝置 ID + 一天 2 票) ---------------- */
+
 async function voteTicker(ticker){
   ticker = ticker.toUpperCase();
   const today = new Date().toISOString().slice(0,10);
   const deviceId = getDeviceId();
 
-  const voteRef1 = db.collection("daily_votes").doc(`${today}_${deviceId}_1`);
-  const voteRef2 = db.collection("daily_votes").doc(`${today}_${deviceId}_2`);
+  const voteId1 = `${today}_${deviceId}_1`;
+  const voteId2 = `${today}_${deviceId}_2`;
+
+  const voteRef1 = db.collection("daily_votes").doc(voteId1);
+  const voteRef2 = db.collection("daily_votes").doc(voteId2);
 
   const [doc1, doc2] = await Promise.all([voteRef1.get(), voteRef2.get()]);
 
@@ -94,7 +101,7 @@ async function voteTicker(ticker){
       }
       tx.set(targetRef, {ticker, timestamp: Date.now()});
     });
-    alert(`投票成功！這是你今天的第 ${voteSeq} 票。`);
+    alert(`投票成功！這是您今天的第 ${voteSeq} 票。`);
   } catch (e) {
     console.error("投票失敗:", e);
     alert("投票失敗，請檢查網路連線。");
@@ -109,6 +116,7 @@ function voteInput(){
 }
 
 /* ---------------- 卡片渲染 ---------------- */
+
 function renderCard(doc, isPinned, rankIndex){
   const data = doc.data();
   const card = document.createElement("div");
@@ -171,7 +179,8 @@ function renderCard(doc, isPinned, rankIndex){
   return card;
 }
 
-/* ---------------- 排行榜 ---------------- */
+/* ---------------- 排行榜 (置頂優先 + 票數排序) ---------------- */
+
 function loadRank(){
   db.collection("votes")
     .orderBy("pinned","desc")
@@ -217,14 +226,15 @@ function loadRank(){
           });
         }
       } catch (err) {
-        console.error("渲染錯誤:", err);
+        console.error("渲染排行榜出錯:", err);
       }
     }, error => {
-      console.error("監聽失敗:", error);
+      console.error("Firestore 監聽失敗:", error);
     });
 }
 
-/* ---------------- Admin 功能 ---------------- */
+/* ---------------- Admin 管理功能 ---------------- */
+
 async function deleteTicker(t){
   if(!confirm("確定刪除 "+t+" ?")) return;
   try {
@@ -239,37 +249,4 @@ async function togglePin(ticker, current){
     await db.collection("votes").doc(ticker).update({
       pinned: !current
     });
-  } catch (err) {
-    console.error("置頂切換失敗:", err);
   }
-}
-
-function login(){
-  const provider = new firebase.auth.GoogleAuthProvider();
-  auth.signInWithPopup(provider);
-}
-
-function logout(){
-  auth.signOut();
-}
-
-async function checkAdmin(uid){
-  try {
-    const doc = await db.collection("admins").doc(uid).get();
-    return doc.exists;
-  } catch (e) {
-    return false;
-  }
-}
-
-// 監聽登入狀態
-auth.onAuthStateChanged(async user=>{
-  if(user){
-    isAdminUser = await checkAdmin(user.uid);
-    adminStatus.innerText = isAdminUser ? "管理者模式" : "一般使用者";
-  }else{
-    isAdminUser = false;
-    adminStatus.innerText = "";
-  }
-  loadRank();
-}); // 確保結尾有 });
