@@ -129,8 +129,6 @@ input{
   border-radius:10px;
   border:1px solid #ddd;
   margin-bottom:12px;
-  /* 確保寬度計算包含 padding */
-  box-sizing: border-box; 
 }
 
 .main-btn{
@@ -148,14 +146,6 @@ input{
 .admin-bar{
   text-align:right;
   padding:10px;
-  /* 預設隱藏，由 app.js 判斷網址後顯示 */
-  display: none; 
-}
-
-#adminStatus {
-  font-size: 12px;
-  color: #2563eb;
-  font-weight: 600;
 }
 </style>
 </head>
@@ -169,10 +159,10 @@ input{
   <div class="tab" id="tabVote">我要增加名單</div>
 </div>
 
-<div class="admin-bar" id="adminControlPanel">
-  <span id="adminStatus"></span>
+<div class="admin-bar">
   <button onclick="login()">Login</button>
   <button onclick="logout()">Logout</button>
+  <span id="adminStatus"></span>
 </div>
 
 <div class="container">
