@@ -23,7 +23,6 @@ const normalSection = document.getElementById("normalSection");
 const adminControlPanel = document.getElementById("adminControlPanel");
 
 // --- 介面控制邏輯 ---
-
 const urlParams = new URLSearchParams(window.location.search);
 const isManagementMode = urlParams.get('admin') === 'true';
 
@@ -59,17 +58,13 @@ function getDeviceId(){
 }
 
 /* ---------------- 投票核心邏輯 ---------------- */
-
 async function voteTicker(ticker){
   ticker = ticker.toUpperCase();
   const today = new Date().toISOString().slice(0,10);
   const deviceId = getDeviceId();
 
-  const voteId1 = `${today}_${deviceId}_1`;
-  const voteId2 = `${today}_${deviceId}_2`;
-
-  const voteRef1 = db.collection("daily_votes").doc(voteId1);
-  const voteRef2 = db.collection("daily_votes").doc(voteId2);
+  const voteRef1 = db.collection("daily_votes").doc(`${today}_${deviceId}_1`);
+  const voteRef2 = db.collection("daily_votes").doc(`${today}_${deviceId}_2`);
 
   const [doc1, doc2] = await Promise.all([voteRef1.get(), voteRef2.get()]);
 
@@ -114,7 +109,6 @@ function voteInput(){
 }
 
 /* ---------------- 卡片渲染 ---------------- */
-
 function renderCard(doc, isPinned, rankIndex){
   const data = doc.data();
   const card = document.createElement("div");
@@ -177,15 +171,13 @@ function renderCard(doc, isPinned, rankIndex){
   return card;
 }
 
-/* ---------------- 排行榜 (強化版) ---------------- */
-
+/* ---------------- 排行榜 ---------------- */
 function loadRank(){
   db.collection("votes")
     .orderBy("pinned","desc")
     .orderBy("count","desc")
     .onSnapshot(snapshot=>{
       try {
-        // 確保目標容器存在
         if (!pinnedSection || !normalSection) return;
 
         pinnedSection.innerHTML = "";
@@ -225,7 +217,59 @@ function loadRank(){
           });
         }
       } catch (err) {
-        console.error("渲染排行榜時發生錯誤:", err);
+        console.error("渲染錯誤:", err);
       }
     }, error => {
-      console.error("Firestore 監聽失敗:", error);
+      console.error("監聽失敗:", error);
+    });
+}
+
+/* ---------------- Admin 功能 ---------------- */
+async function deleteTicker(t){
+  if(!confirm("確定刪除 "+t+" ?")) return;
+  try {
+    await db.collection("votes").doc(t).delete();
+  } catch (err) {
+    console.error("刪除失敗:", err);
+  }
+}
+
+async function togglePin(ticker, current){
+  try {
+    await db.collection("votes").doc(ticker).update({
+      pinned: !current
+    });
+  } catch (err) {
+    console.error("置頂切換失敗:", err);
+  }
+}
+
+function login(){
+  const provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider);
+}
+
+function logout(){
+  auth.signOut();
+}
+
+async function checkAdmin(uid){
+  try {
+    const doc = await db.collection("admins").doc(uid).get();
+    return doc.exists;
+  } catch (e) {
+    return false;
+  }
+}
+
+// 監聽登入狀態
+auth.onAuthStateChanged(async user=>{
+  if(user){
+    isAdminUser = await checkAdmin(user.uid);
+    adminStatus.innerText = isAdminUser ? "管理者模式" : "一般使用者";
+  }else{
+    isAdminUser = false;
+    adminStatus.innerText = "";
+  }
+  loadRank();
+}); // 確保結尾有 });
