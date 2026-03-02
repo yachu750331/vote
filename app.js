@@ -1,4 +1,4 @@
-// Firebase 配置 (與您的專案對應)
+// Firebase 配置
 const firebaseConfig = {
   apiKey: "AIzaSyArRnMFZoLEjghu1WOHvkoVpss67KKAs2M",
   authDomain: "vote-742d9.firebaseapp.com",
@@ -8,7 +8,6 @@ const firebaseConfig = {
   appId: "1:265605858274:web:dda344ef0d7176cfe56fbb"
 };
 
-// 初始化 Firebase
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
@@ -25,12 +24,14 @@ const adminControlPanel = document.getElementById("adminControlPanel");
 
 // --- 介面控制邏輯 ---
 
-// 檢查網址參數：如果是 ?admin=true 才開啟管理功能
 const urlParams = new URLSearchParams(window.location.search);
 const isManagementMode = urlParams.get('admin') === 'true';
 
+// 判斷是否顯示管理區塊
 if (isManagementMode && adminControlPanel) {
   adminControlPanel.style.display = "block";
+} else if (adminControlPanel) {
+  adminControlPanel.style.display = "none";
 }
 
 document.getElementById("tabRank").onclick = () => {
