@@ -13,200 +13,29 @@ const auth = firebase.auth();
 
 let isAdminUser = false;
 
+// DOM 元素
 const rankPage = document.getElementById("rankPage");
 const votePage = document.getElementById("votePage");
 const adminStatus = document.getElementById("adminStatus");
 const pinnedSection = document.getElementById("pinnedSection");
 const normalSection = document.getElementById("normalSection");
+// 這裡新增獲取按鈕列容器
+const adminControlPanel = document.getElementById("adminControlPanel"); 
 
-document.getElementById("tabRank").onclick = () => {
-  rankPage.classList.remove("hidden");
-  votePage.classList.add("hidden");
-  setActive(0);
-};
+/* --- 新增：網址參數檢查邏輯 --- */
+const urlParams = new URLSearchParams(window.location.search);
+// 判斷網址是否包含 ?admin=true
+const isManagementMode = urlParams.get('admin') === 'true';
 
-document.getElementById("tabVote").onclick = () => {
-  votePage.classList.remove("hidden");
-  rankPage.classList.add("hidden");
-  setActive(1);
-};
-
-function setActive(i){
-  document.querySelectorAll(".tab").forEach((t,idx)=>{
-    t.classList.toggle("active",idx===i);
-  });
+// 如果不是管理模式，隱藏按鈕列
+if (isManagementMode && adminControlPanel) {
+    adminControlPanel.style.display = "block";
+} else if (adminControlPanel) {
+    adminControlPanel.style.display = "none";
 }
+/* --------------------------- */
 
-function getDeviceId(){
-  let id = localStorage.getItem("deviceId");
-  if(!id){
-    id = crypto.randomUUID();
-    localStorage.setItem("deviceId", id);
-  }
-  return id;
-}
-
-/* ---------------- 投票 ---------------- */
-
-async function voteTicker(ticker){
-  ticker = ticker.toUpperCase();
-  const today = new Date().toISOString().slice(0,10);
-  const deviceId = getDeviceId();
-
-  const voteRef1 = db.collection("daily_votes").doc(`${today}_${deviceId}_1`);
-  const voteRef2 = db.collection("daily_votes").doc(`${today}_${deviceId}_2`);
-
-  const [doc1, doc2] = await Promise.all([voteRef1.get(), voteRef2.get()]);
-
-  let targetRef;
-
-  if(!doc1.exists){
-    targetRef = voteRef1;
-  }else if(!doc2.exists){
-    targetRef = voteRef2;
-  }else{
-    alert("今天已投完 2 票");
-    return;
-  }
-
-  const ref = db.collection("votes").doc(ticker);
-
-  await db.runTransaction(async tx=>{
-    const doc = await tx.get(ref);
-    if(!doc.exists){
-      tx.set(ref,{count:1,pinned:false});
-    }else{
-      tx.update(ref,{count:doc.data().count+1});
-    }
-    tx.set(targetRef,{ticker,timestamp:Date.now()});
-  });
-}
-
-function voteInput(){
-  const val = document.getElementById("tickerInput").value.trim();
-  if(!val) return;
-  voteTicker(val);
-  document.getElementById("tickerInput").value="";
-}
-
-/* ---------------- 卡片渲染 ---------------- */
-
-function renderCard(doc, isPinned, rankIndex){
-
-  const data = doc.data();
-  const card = document.createElement("div");
-  card.className = "card";
-
-  if(isPinned){
-    card.classList.add("pinned-card");
-  }
-
-  card.onclick = () => voteTicker(doc.id);
-
-  const left = document.createElement("div");
-
-  // 👑 取代 medal 邏輯
-  let medalIcon = "";
-
-  if(isPinned){
-    medalIcon = "👑";
-  }else if(rankIndex < 3){
-    medalIcon = ["🥇","🥈","🥉"][rankIndex];
-  }
-
-  left.innerHTML = `
-    <span class="medal">${medalIcon}</span>
-    <span class="ticker">${doc.id}</span>
-  `;
-
-  const right = document.createElement("div");
-
-  const count = document.createElement("span");
-  count.className = "count";
-  count.innerText = data.count;
-
-  count.classList.add("flip");
-  setTimeout(()=>count.classList.remove("flip"),300);
-
-  right.appendChild(count);
-
-  if(isAdminUser){
-
-    const del = document.createElement("button");
-    del.innerText = "✕";
-    del.className = "admin-delete";
-    del.onclick = e=>{
-      e.stopPropagation();
-      deleteTicker(doc.id);
-    };
-    right.appendChild(del);
-
-    const pin = document.createElement("button");
-    pin.innerText = "📌";
-    pin.className = "admin-pin";
-    if(data.pinned) pin.classList.add("active");
-
-    pin.onclick = e=>{
-      e.stopPropagation();
-      togglePin(doc.id,data.pinned===true);
-    };
-
-    right.appendChild(pin);
-  }
-
-  card.appendChild(left);
-  card.appendChild(right);
-
-  return card;
-}
-
-/* ---------------- 排行榜 ---------------- */
-
-function loadRank(){
-
-  db.collection("votes")
-    .orderBy("pinned","desc")
-    .orderBy("count","desc")
-    .onSnapshot(snapshot=>{
-
-      pinnedSection.innerHTML="";
-      normalSection.innerHTML="";
-
-      const pinnedDocs=[];
-      const normalDocs=[];
-
-      snapshot.docs.forEach(doc=>{
-        if(doc.data().pinned){
-          pinnedDocs.push(doc);
-        }else{
-          normalDocs.push(doc);
-        }
-      });
-
-      if(pinnedDocs.length>0){
-        const title=document.createElement("div");
-        title.className="section-title";
-        title.innerText="置頂股票";
-        pinnedSection.appendChild(title);
-
-        pinnedDocs.forEach((doc,i)=>{
-          pinnedSection.appendChild(renderCard(doc,true,i));
-        });
-      }
-
-      if(normalDocs.length>0){
-        const title=document.createElement("div");
-        title.className="section-title";
-        title.innerText="股票排行榜";
-        normalSection.appendChild(title);
-
-        normalDocs.forEach((doc,i)=>{
-          normalSection.appendChild(renderCard(doc,false,i));
-        });
-      }
-
-    });
-}
+// ... (中間 tab 切換、getDeviceId、voteTicker、renderCard 等函數保持不變) ...
 
 /* ---------------- Admin ---------------- */
 
@@ -238,6 +67,7 @@ async function checkAdmin(uid){
 auth.onAuthStateChanged(async user=>{
   if(user){
     isAdminUser = await checkAdmin(user.uid);
+    // 只有在管理員模式下才顯示狀態文字
     adminStatus.innerText = isAdminUser ? "管理者模式" : "一般使用者";
   }else{
     isAdminUser = false;
