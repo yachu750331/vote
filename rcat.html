@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RCAT 互動式企業關係圖｜靜態 Dashboard</title>
+  <style>
+    :root{
+      --bg:#07172b;
+      --bg2:#0b2039;
+      --panel:#102742;
+      --panel2:#132d4d;
+      --line:#25486e;
+      --text:#eaf3ff;
+      --muted:#94aed0;
+      --blue:#39a6ff;
+      --cyan:#4dd8ff;
+      --green:#4ddf8f;
+      --orange:#ff9a3d;
+      --yellow:#ffd24d;
+      --purple:#b07cff;
+      --red:#ff6b6b;
+      --shadow:0 10px 30px rgba(0,0,0,.28);
+      --radius:18px;
+    }
+
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:"Segoe UI","Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(circle at top center, #153866 0%, #0a1d35 35%, #07172b 70%, #061320 100%);
+      min-height:100vh;
+      line-height:1.45;
+    }
+
+    a{
+      color:#8fd4ff;
+      text-decoration:none;
+    }
+    a:hover{ text-decoration:underline; }
+
+    .container{
+      width:min(1500px, calc(100% - 32px));
+      margin:18px auto 40px;
+    }
+
+    .hero{
+      text-align:center;
+      padding:10px 10px 18px;
+    }
+
+    .hero .eyebrow{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      color:#8dd3ff;
+      font-weight:800;
+      font-size:20px;
+      letter-spacing:.4px;
+      margin-bottom:8px;
+    }
+
+    .hero .subtitle{
+      color:var(--muted);
+      font-size:14px;
+      margin-bottom:10px;
+    }
+
+    .badge-row{
+      display:flex;
+      flex-wrap:wrap;
+      justify-content:center;
+      gap:10px;
+      margin-top:10px;
+    }
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:7px 12px;
+      border-radius:999px;
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(130,180,255,.2);
+      color:#dcecff;
+      font-size:12px;
+      backdrop-filter: blur(4px);
+    }
+
+    .top-card{
+      background:linear-gradient(180deg, #2387ea 0%, #1e6cca 100%);
+      border:1px solid rgba(255,255,255,.18);
+      box-shadow:0 0 0 1px rgba(255,255,255,.06) inset, 0 18px 40px rgba(22,92,175,.35);
+      border-radius:20px;
+      padding:22px 24px;
+      max-width:980px;
+      margin:18px auto 0;
+      text-align:center;
+      position:relative;
+    }
+
+    .ticker{
+      font-size:34px;
+      font-weight:900;
+      letter-spacing:.8px;
+      margin:0;
+    }
+
+    .ticker-sub{
+      margin-top:4px;
+      color:#d9eeff;
+      font-size:13px;
+      opacity:.95;
+    }
+
+    .sections{
+      display:grid;
+      gap:14px;
+      margin-top:18px;
+    }
+
+    .section{
+      background:linear-gradient(180deg, rgba(15,39,67,.97), rgba(10,28,50,.97));
+      border:1px solid var(--line);
+      border-radius:20px;
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+
+    .section-head{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      padding:14px 16px;
+      border-bottom:1px solid rgba(112,156,207,.14);
+      background:linear-gradient(180deg, rgba(255,255,255,.025), rgba(255,255,255,.01));
+    }
+
+    .section-title{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      font-weight:800;
+      font-size:18px;
+    }
+
+    .section-tag{
+      font-size:12px;
+      color:#d7e9ff;
+      padding:5px 9px;
+      border-radius:999px;
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.08);
+      white-space:nowrap;
+    }
+
+    .section-body{
+      padding:14px;
+    }
+
+    .grid{
+      display:grid;
+      gap:12px;
+    }
+
+    .grid-2{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .grid-3{ grid-template-columns:repeat(3,minmax(0,1fr)); }
+    .grid-4{ grid-template-columns:repeat(4,minmax(0,1fr)); }
+    .grid-5{ grid-template-columns:repeat(5,minmax(0,1fr)); }
+    .grid-6{ grid-template-columns:repeat(6,minmax(0,1fr)); }
+
+    .card{
+      background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.015));
+      border:1px solid rgba(116,159,210,.22);
+      border-radius:16px;
+      padding:14px 14px 12px;
+      min-height:120px;
+      position:relative;
+    }
+
+    .card.blue{ border-color:rgba(67,162,255,.55); box-shadow:0 0 0 1px rgba(45,133,255,.08) inset; }
+    .card.green{ border-color:rgba(77,223,143,.5); }
+    .card.orange{ border-color:rgba(255,154,61,.5); }
+    .card.purple{ border-color:rgba(176,124,255,.48); }
+    .card.yellow{ border-color:rgba(255,210,77,.55); }
+    .card.red{ border-color:rgba(255,107,107,.5); }
+
+    .mini-badge{
+      position:absolute;
+      top:10px;
+      right:10px;
+      font-size:11px;
+      font-weight:700;
+      color:#fff;
+      border-radius:999px;
+      padding:4px 8px;
+      background:rgba(255,255,255,.08);
+      border:1px solid rgba(255,255,255,.12);
+    }
+    .mini-badge.blue{ background:rgba(57,166,255,.16); color:#cfe9ff; }
+    .mini-badge.green{ background:rgba(77,223,143,.16); color:#d6ffe7; }
+    .mini-badge.orange{ background:rgba(255,154,61,.16); color:#ffe5cf; }
+    .mini-badge.purple{ background:rgba(176,124,255,.16); color:#e8daff; }
+    .mini-badge.yellow{ background:rgba(255,210,77,.16); color:#fff1bf; }
+    .mini-badge.red{ background:rgba(255,107,107,.16); color:#ffdada; }
+
+    .card h3{
+      margin:0 0 6px;
+      font-size:17px;
+      font-weight:800;
+      padding-right:72px;
+    }
+
+    .card p{
+      margin:0;
+      color:var(--muted);
+      font-size:13px;
+    }
+
+    .meta{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin-top:10px;
+    }
+
+    .meta span{
+      font-size:11px;
+      color:#d8ebff;
+      background:rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:999px;
+      padding:4px 8px;
+    }
+
+    .stats{
+      display:grid;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:10px;
+    }
+
+    .stat{
+      background:linear-gradient(180deg, rgba(27,62,101,.85), rgba(14,33,58,.95));
+      border:1px solid rgba(63,131,207,.35);
+      border-radius:14px;
+      padding:14px;
+      text-align:left;
+    }
+
+    .stat .label{
+      color:#a9c2e3;
+      font-size:12px;
+      margin-bottom:6px;
+    }
+
+    .stat .value{
+      font-size:28px;
+      font-weight:900;
+      color:#fff;
+      line-height:1.1;
+      margin-bottom:4px;
+    }
+
+    .stat .desc{
+      color:var(--muted);
+      font-size:12px;
+    }
+
+    .timeline{
+      display:grid;
+      gap:10px;
+    }
+
+    .timeline-item{
+      display:grid;
+      grid-template-columns:130px 1fr;
+      gap:12px;
+      align-items:start;
+      background:rgba(255,255,255,.02);
+      border:1px solid rgba(116,159,210,.18);
+      border-radius:14px;
+      padding:12px;
+    }
+
+    .timeline-date{
+      font-weight:800;
+      color:#ffd88c;
+      font-size:13px;
+    }
+
+    .timeline-content{
+      color:#dbe9fb;
+      font-size:13px;
+    }
+
+    .table-wrap{
+      overflow:auto;
+      border-radius:14px;
+      border:1px solid rgba(116,159,210,.2);
+    }
+
+    table{
+      width:100%;
+      border-collapse:collapse;
+      min-width:780px;
+      background:rgba(255,255,255,.015);
+    }
+
+    th, td{
+      padding:12px 12px;
+      border-bottom:1px solid rgba(116,159,210,.14);
+      text-align:left;
+      vertical-align:top;
+      font-size:13px;
+    }
+
+    th{
+      background:rgba(255,255,255,.03);
+      color:#dff0ff;
+      font-size:12px;
+      letter-spacing:.3px;
+    }
+
+    td{
+      color:#cfe2f8;
+    }
+
+    .footer-note{
+      margin-top:18px;
+      color:#8ea9cb;
+      font-size:12px;
+      text-align:center;
+      padding:10px;
+    }
+
+    .source-list{
+      display:grid;
+      gap:10px;
+    }
+
+    .source-item{
+      padding:12px 14px;
+      border-radius:14px;
+      background:rgba(255,255,255,.02);
+      border:1px solid rgba(116,159,210,.18);
+      color:#d7e8ff;
+      font-size:13px;
+    }
+
+    .muted{
+      color:var(--muted);
+      font-size:12px;
+    }
+
+    @media (max-width:1200px){
+      .grid-6{ grid-template-columns:repeat(3,minmax(0,1fr)); }
+      .grid-5{ grid-template-columns:repeat(3,minmax(0,1fr)); }
+      .grid-4{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .stats{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+    }
+
+    @media (max-width:760px){
+      .container{ width:min(100% - 16px, 100%); }
+      .top-card{ padding:18px 14px; }
+      .ticker{ font-size:28px; }
+      .grid-2,.grid-3,.grid-4,.grid-5,.grid-6{ grid-template-columns:1fr; }
+      .stats{ grid-template-columns:1fr; }
+      .timeline-item{ grid-template-columns:1fr; }
+      .section-head{ align-items:flex-start; flex-direction:column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <header class="hero">
+      <div class="eyebrow">🛡️ RCAT．互動式企業關係圖</div>
+      <div class="subtitle">仿照深色企業關係儀表板風格設計｜靜態 HTML Demo</div>
+
+      <div class="badge-row">
+        <div class="pill">📌 觀察標的：RCAT</div>
+        <div class="pill">🏢 公司：Red Cat Holdings, Inc.</div>
+        <div class="pill">📅 內容更新基準：2026-03</div>
+        <div class="pill">📚 資料源：官網 / IR / SEC</div>
+      </div>
+
+      <div class="top-card">
+        <h1 class="ticker">RCAT</h1>
+        <div class="ticker-sub">NASDAQ: RCAT｜Red Cat Holdings, Inc.｜國防 / 國安無人系統平台</div>
+
+        <div class="badge-row" style="margin-top:14px;">
+          <div class="pill">美國國防 / 國安導向</div>
+          <div class="pill">Family of Systems</div>
+          <div class="pill">Black Widow / TRICHON / FANG</div>
+          <div class="pill">Blue UAS / NDAA 合規敘事</div>
+        </div>
+      </div>
+    </header>
+
+    <main class="sections">
+
+      <!-- 公司總覽 -->
+      <section class="section">
+        <div class="section-head">
+          <div class="section-title">🏢 公司總覽</div>
+          <div class="section-tag">Red Cat Holdings</div>
+        </div>
+        <div class="section-body">
+          <div class="stats">
+            <div class="stat">
+              <div class="label">公司定位</div>
+              <div class="value">國防無人系統</div>
+              <div class="desc">聚焦美國國防、國安、ISR 與戰術任務場景</div>
+            </div>
+            <div class="stat">
+              <div class="label">核心架構</div>
+              <div class="value">Family of Systems</div>
+              <div class="desc">以多平台、多任務載具構成整體解決方案</div>
+            </div>
+            <div class="stat">
+              <div class="label">主要品牌 / 業務</div>
+              <div class="value">Teal / FlightWave / Blue Ops</div>
+              <div class="desc">涵蓋短程偵察、VTOL、FPV 與海事自主系統</div>
+            </div>
+            <div class="stat">
+              <div class="label">市場敘事</div>
+              <div class="value">Blue UAS / NDAA</div>
+              <div class="desc">強調美國供應鏈、安全合規與軍用採購適配性</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 財務摘要 -->
+      <section class="section">
+        <div class="section-head">
+          <div class="section-title">💰 財務摘要</div>
+          <div class="section-tag">IR / SEC</div>
+        </div>
+        <div class="section-body">
+          <div class="grid grid-4">
+            <div class="card yellow">
+              <div class="mini-badge yellow">Q3 2025</div>
+              <h3>營收 $9.6M</h3>
+              <p>公司 Q3 2025 新聞稿揭露單季營收 960 萬美元，年增 646%，季增 200%。</p>
+              <div class="meta">
+                <span>IR 新聞稿</span>
+                <span>YoY +646%</span>
+                <span>QoQ +200%</span>
+              </div>
+            </div>
+
+            <div class="card orange">
+              <div class="mini-badge orange">Q4 2025 初估</div>
+              <h3>$24.0M – $26.5M</h3>
+              <p>公司公告之 2025 年第四季初步、未審計營收區間。</p>
+              <div class="meta">
+                <span>Preliminary</span>
+                <span>Unaudited</span>
+              </div>
+            </div>
+
+            <div class="card green">
+              <div class="mini-badge green">FY2025 初估</div>
+              <h3>$38.0M – $41.0M</h3>
+              <p>公司公告之 2025 全年初步、未審計營收區間。</p>
+              <div class="meta">
+                <span>IR 公告</span>
+                <span>FY2025</span>
+              </div>
+            </div>
+
+            <div class="card red">
+              <div class="mini-badge red">10-Q 2025/03/31</div>
+              <h3>現金 $7.72M</h3>
+              <p>SEC 10-Q 顯示截至 2025/03/31 現金約 772 萬美元；存貨與預付存貨合計約 1,710.8 萬美元。</p>
+              <div class="meta">
+                <span>Cash</span>
+                <span>Inventory</span>
+                <span>Working Capital</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 產品與系統 -->
+      <section class="section">
+        <div class="section-head">
+          <div class="section-title">🚁 產品與系統</div>
+          <div class="section-tag">Family of Systems</div>
+        </div>
+        <div class="section-body">
+          <div class="grid grid-5">
+            <div class="card blue">
+              <div class="mini-badge blue">主力平台</div>
+              <h3>Black Widow</h3>
+              <p>短程偵察主力機型，對應軍用 SRR 場景，是 Red Cat 當前最關鍵的量產敘事核心。</p>
+              <div class="meta">
+                <span>SRR</span>
+                <span>Teal Drones</span>
+                <span>45+ 分鐘續航</span>
+              </div>
+            </div>
+
+            <div class="card orange">
+              <div class="mini-badge orange">延伸平台</div>
+              <h3>TRICHON</h3>
+              <p>混合 VTOL 無人機，主打更長航程與滯空時間，用於 ISR 與地圖任務，官網標示為開發中。</p>
+              <div class="meta">
+                <span>Hybrid VTOL</span>
+                <span>ISR</span>
+                <span>Under Development</span>
+              </div>
+            </div>
+
+            <div class="card purple">
+              <div class="mini-badge purple">FPV</div>
+              <h3>FANG</h3>
+              <p>NDAA-compliant FPV drone，主打訓練與戰術操作，可回收設計是其差異化重點之一。</p>
+              <div class="meta">
+                <span>FPV</span>
+                <span>NDAA</span>
+                <span>Tactical</span>
+              </div>
+            </div>
+
+            <div class="card green">
+              <div class="mini-badge green">海事</div>
+              <h3>Blue Ops</h3>
+              <p>朝海上自主系統與 maritime autonomy 方向延伸，讓公司敘事不只停留在空中平台。</p>
+              <div class="meta">
+                <span>Maritime</span>
+                <span>Autonomy</span>
+              </div>
+            </div>
+
+            <div class="card yellow">
+              <div class="mini-badge yellow">整體方案</div>
+              <h3>Multi-Domain Stack</h3>
+              <p>從軍用偵察、VTOL、FPV，到海事自主系統，構成更完整的任務組合與採購想像空間。</p>
+              <div class="meta">
+                <span>Air</span>
+                <span>Sea</span>
+                <span>Mission-ready</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 認證 / 資質 / 採購敘事 -->
+      <section class="section">
+        <div class="section-head">
+          <div class="section-title">✅ 認證 / 採購敘事 / 合規重點</div>
+          <div class="section-tag">Government Fit</div>
+        </div>
+        <div class="section-body">
+          <div class="grid grid-4">
+            <div class="card green">
+              <div class="mini-badge green">Blue UAS</div>
+              <h3>Blue UAS Refresh</h3>
+              <p>公司曾公告 Black Widow 與 Edge 130 入選 Blue UAS Refresh，提升政府採購辨識度。</p>
+            </div>
+
+            <div class="card yellow">
+              <div class="mini-badge yellow">NDAA</div>
+              <h3>NDAA 合規敘事</h3>
+              <p>FANG 官網直接強調 NDAA-compliant，對美國國安與軍方採購敘事很重要。</p>
+            </div>
+
+            <div class="card blue">
+              <div class="mini-badge blue">SRR</div>
+              <h3>U.S. Army SRR</h3>
+              <p>SRR Program of Record 是 RCAT 最具市場想像力的採購敘事來源之一。</p>
+            </div>
+
+            <div class="card orange">
+              <div class="mini-badge orange">供應鏈</div>
+              <h3>美國本土安全供應鏈</h3>
+              <p>公司品牌與新聞稿反覆強調美國製造、安全與國防應用適配性。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 催化劑 -->
+      <section class="section">
+        <div class="section-head">
+          <div class="section-title">📌 重大催化劑</div>
+          <div class="section-tag">Catalysts</div>
+        </div>
+        <div class="section-body">
+          <div class="grid grid-4">
+            <div class="card yellow">
+              <div class="mini-badge yellow">關鍵</div>
+              <h3>軍方採購放量</h3>
+              <p>若 SRR / Tranche 相關採購持續擴大，將是營收與估值重評的最大驅動因子。</p>
+            </div>
+
+            <div class="card orange">
+              <div class="mini-badge orange">量產</div>
+              <h3>Black Widow 產能爬坡</h3>
+              <p>是否能把軍方得標敘事轉化為穩定交付與現金流，將決定市場信心。</p>
+            </div>
+
+            <div class="card purple">
+              <div class="mini-badge purple">新品</div>
+              <h3>TRICHON / FANG 商業化</h3>
+              <p>新品若能在軍方或盟友市場取得實單，將提高平台價值與產品層次。</p>
+            </div>
+
+            <div class="card green">
+              <div class="mini-badge green">擴張</div>
+              <h3>海事自主系統敘事</h3>
+              <p>Blue Ops 若成功打開市場，可讓 RCAT 從單一無人機故事，擴展成多域機器人平台。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 時間軸 -->
+      <section class="section">
+        <div class="section-head">
+          <div class="section-title">🕒 事件時間軸</div>
+          <div class="section-tag">官方揭露節點</div>
+        </div>
+        <div class="section-body">
+          <div class="timeline">
+            <div class="timeline-item">
+              <div class="timeline-date">2024-11-19</div>
+              <div class="timeline-content">
+                公司公告獲選為美國陸軍 SRR Program of Record 的生產得標者，成為 RCAT 市場敘事的重要轉折點。
+              </div>
+            </div>
+
+            <div class="timeline-item">
+              <div class="timeline-date">2025-02-24</div>
+              <div class="timeline-content">
+                公司公告 Black Widow 與 Edge 130 入選 Blue UAS Refresh，強化政府採購與合規敘事。
+              </div>
+            </div>
+
+            <div class="timeline-item">
+              <div class="timeline-date">2025-05-14</div>
+              <div class="timeline-content">
+                公司公布 2025 第一季財報與全年指引，並提到 Black Widow、Edge 130、FANG 等產品銷售目標構成。
+              </div>
+            </div>
+
+            <div class="timeline-item">
+              <div class="timeline-date">2025-11-13</div>
+              <div class="timeline-content">
+                公司公布 Q3 2025 營收 960 萬美元，年增 646%；並提到 SRR UAS Tranche 2 的 LRIP 合約擴大至約 3,500 萬美元。
+              </div>
+            </div>
+
+            <div class="timeline-item">
+              <div class="timeline-date">2026-01-13</div>
+              <div class="timeline-content">
+                公司公布 Q4 / FY2025 初步未審計營收：Q4 約 2,400 萬至 2,650 萬美元，FY2025 約 3,800 萬至 4,100 萬美元。
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SEC 觀察表 -->
+      <section class="section">
+        <div class="section-head">
+          <div class="section-title">📄 SEC 觀察重點</div>
+          <div class="section-tag">10-Q Snapshot</div>
+        </div>
+        <div class="section-body">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>項目</th>
+                  <th>數值 / 狀態</th>
+                  <th>說明</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>2025/03/31 單季營收</td>
+                  <td>$1,629,662</td>
+                  <td>SEC 10-Q 揭露之三個月營收。</td>
+                </tr>
+                <tr>
+                  <td>2025/03/31 單季淨損</td>
+                  <td>$(23,123,351)</td>
+                  <td>仍處擴張與投入階段，獲利波動大。</td>
+                </tr>
+                <tr>
+                  <td>現金</td>
+                  <td>$7,722,410</td>
+                  <td>10-Q 截至 2025/03/31 的現金水位。</td>
+                </tr>
+                <tr>
+                  <td>Current Assets</td>
+                  <td>$29,412,488</td>
+                  <td>流動資產總額。</td>
+                </tr>
+                <tr>
+                  <td>Current Liabilities</td>
+                  <td>$28,906,372</td>
+                  <td>流動負債總額。</td>
+                </tr>
+                <tr>
+                  <td>Net Working Capital</td>
+                  <td>$506,116</td>
+                  <td>營運資金空間相對有限，需觀察後續交付與融資節奏。</td>
+                </tr>
+                <tr>
+                  <td>Inventory + Prepaid Inventory</td>
+                  <td>$17,107,860</td>
+                  <td>庫存相關金額偏高，通常反映量產準備或交付節奏。</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 來源 -->
+      <section class="section">
+        <div class="section-head">
+          <div class="section-title">🔗 官方資料來源</div>
+          <div class="section-tag">可替換成真實連結區</div>
+        </div>
+        <div class="section-body">
+          <div class="source-list">
+            <div class="source-item">
+              <strong>公司官網：</strong>
+              <a href="https://redcat.red/" target="_blank" rel="noopener noreferrer">https://redcat.red/</a>
+              <div class="muted">公司定位、產品、品牌與整體敘事</div>
+            </div>
+
+            <div class="source-item">
+              <strong>產品系統頁：</strong>
+              <a href="https://redcat.red/solutions/family-of-systems/" target="_blank" rel="noopener noreferrer">https://redcat.red/solutions/family-of-systems/</a>
+              <div class="muted">Black Widow / TRICHON / Blue Ops 等產品說明</div>
+            </div>
+
+            <div class="source-item">
+              <strong>FANG 頁面：</strong>
+              <a href="https://redcat.red/fang/" target="_blank" rel="noopener noreferrer">https://redcat.red/fang/</a>
+              <div class="muted">NDAA-compliant FPV drone 描述</div>
+            </div>
+
+            <div class="source-item">
+              <strong>Investor Relations：</strong>
+              <a href="https://ir.redcatholdings.com/news-events/press-releases" target="_blank" rel="noopener noreferrer">https://ir.redcatholdings.com/news-events/press-releases</a>
+              <div class="muted">公司新聞稿、財務更新、產品與軍方採購節點</div>
+            </div>
+
+            <div class="source-item">
+              <strong>SEC 10-Q：</strong>
+              <a href="https://www.sec.gov/Archives/edgar/data/748268/000164117225010350/form10-q.htm" target="_blank" rel="noopener noreferrer">https://www.sec.gov/Archives/edgar/data/748268/000164117225010350/form10-q.htm</a>
+              <div class="muted">2025/03/31 季報內容</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <div class="footer-note">
+      本頁為仿介面靜態展示版，數據區塊可再接續改成你要的欄位結構，例如：軍方關係、子公司、高管、採購案、證照資格、風險、競品比較。
+    </div>
+  </div>
+</body>
+</html>
